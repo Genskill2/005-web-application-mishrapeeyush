@@ -18,19 +18,23 @@ def format_date(d):
 
 @bp.route("/search/<field>/<value>")
 def search(field, value):
-    # TBD
-    return ""
+    conn=db.get_db()
+    cursor=conn.cursor()
+    cursor.execute(f"select p.id,p.name,p.bought,p.sold,an.name from pet p,tag tg1,tags_pets tg2,animal an where tg1.name='{value}' and tg2.tag=tg1.id and tg2.pet=p.id and an.id=p.species")
+    q=cursor.fetchall()
+    d=dict(field=field,value=value,pets=q)
+    return render_template('search.html',**d)
 
 @bp.route("/")
 def dashboard():
     conn = db.get_db()
     cursor = conn.cursor()
-    oby = request.args.get("order_by", "id") # TODO. This is currently not used. 
+    oby = request.args.get("order_by", "id") 
     order = request.args.get("order", "asc")
     if order == "asc":
-        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id")
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.{oby}")
     else:
-        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id desc")
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.{oby} desc")
     pets = cursor.fetchall()
     return render_template('index.html', pets = pets, order="desc" if order=="asc" else "asc")
 
@@ -74,7 +78,14 @@ def edit(pid):
     elif request.method == "POST":
         description = request.form.get('description')
         sold = request.form.get("sold")
-        # TODO Handle sold
+        if(sold):
+        	g=datetime.datetime.now()
+        	h=g.strftime("%Y-%m-%d")
+        	cursor.execute("update pet set sold=?,description=? where id=?",(h,description,pid))
+        	conn.commit()
+        else:
+        	cursor.execute("update pet set sold=?,description=? where id=?",(sold,description,pid))
+        	conn.commit()
         return redirect(url_for("pets.pet_info", pid=pid), 302)
         
     
